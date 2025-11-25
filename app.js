@@ -403,7 +403,12 @@ class FloodMapApp {
                         <div class="note-card-location">
                             ${item.subdistrict ? item.subdistrict + ', ' : ''}${item.district || ''}${item.province ? ', ' + item.province : ''}
                         </div>
-                        <button class="focus-btn" onclick="window.floodMapApp.focusMarker('${item.id}')">📍 สถานที่</button>
+                        <div class="note-card-actions">
+                            <button class="google-map-btn" onclick="window.floodMapApp.openGoogleMaps(${item.coordinates[1]}, ${item.coordinates[0]})" title="เปิดใน Google Maps">
+                                🗺️
+                            </button>
+                            <button class="focus-btn" onclick="window.floodMapApp.focusMarker('${item.id}')">📍 สถานที่</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -472,6 +477,12 @@ class FloodMapApp {
                 }
             }, 100);
         }
+    }
+    
+    openGoogleMaps(latitude, longitude) {
+        // เปิด Google Maps ในแท็บใหม่ด้วยพิกัด
+        const googleMapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        window.open(googleMapsUrl, '_blank');
     }
     
     focusMarker(itemId) {

@@ -244,6 +244,33 @@ body {
     flex: 1;
 }
 
+.note-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.google-map-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 28px;
+}
+
+.google-map-btn:hover {
+    background: #218838;
+    transform: scale(1.1);
+}
+
 .focus-btn {
     background: #007bff;
     color: white;
