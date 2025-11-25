@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOS Flood Map - ระบบติดตามสถานการณ์น้ำท่วม</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Panel กรองข้อมูล (30%) -->
+        <div class="filter-panel">
+            <div class="panel-header">
+                <h2>🔍 กรองข้อมูล</h2>
+                <button id="refreshBtn" class="refresh-btn">🔄 รีเฟรช</button>
+            </div>
+            
+            <div class="filter-section">
+                <h3>📍 ตำบล (Subdistrict)</h3>
+                <select id="subdistrictFilter" multiple class="multi-select">
+                    <option value="all">ทั้งหมด</option>
+                </select>
+                <small>กด Ctrl/Cmd เพื่อเลือกหลายรายการ</small>
+            </div>
+            
+            <div class="filter-section">
+                <h3>👥 ประเภทผู้ประสบภัย</h3>
+                <div style="margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="radio" name="victimFilterMode" value="any" checked>
+                        <span style="font-size: 0.9rem;"><strong>รวม:</strong> แสดงที่ตรงกับอย่างน้อย 1 ประเภท</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="victimFilterMode" value="all">
+                        <span style="font-size: 0.9rem;"><strong>เจาะจง:</strong> ต้องตรงกับทุกประเภทที่เลือก</span>
+                    </label>
+                </div>
+                <div style="margin-bottom: 10px; display: flex; gap: 8px;">
+                    <button id="checkAllVictimsBtn" class="small-btn" style="flex: 1; background: #28a745;">
+                        ✓ เลือกทั้งหมด
+                    </button>
+                    <button id="uncheckAllVictimsBtn" class="small-btn" style="flex: 1; background: #6c757d;">
+                        ✗ ล้างทั้งหมด
+                    </button>
+                </div>
+                <div class="checkbox-group" id="victimTypesList">
+                    <!-- จะถูกสร้างอัตโนมัติจากข้อมูล -->
+                    <div style="text-align: center; color: #6c757d; padding: 10px;">
+                        กำลังโหลดประเภทผู้ประสบภัย...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <h3>📊 สถานะการช่วยเหลือ</h3>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" name="status" value="0" checked>
+                        <span class="status-badge status-0">รอการช่วยเหลือ</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" name="status" value="3" checked>
+                        <span class="status-badge status-3">กำลังดำเนินการช่วยเหลือ</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <h3>📈 สถิติ</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">ทั้งหมด:</span>
+                        <span class="stat-value" id="totalCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">แสดง:</span>
+                        <span class="stat-value" id="filteredCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">รอช่วยเหลือ:</span>
+                        <span class="stat-value status-0" id="status0Count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">กำลังช่วยเหลือ:</span>
+                        <span class="stat-value status-3" id="status3Count">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <h3>⚙️ การตั้งค่า</h3>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        🗺️ มุมมองแผนที่:
+                    </label>
+                    <select id="mapStyleSelect" class="multi-select" style="min-height: auto; height: auto;">
+                        <option value="OpenStreetMap">OpenStreetMap</option>
+                        <option value="CartoDB Light Gray">CartoDB Light Gray</option>
+                    </select>
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="useCache" checked>
+                    <span>ใช้ Cache (LocalStorage)</span>
+                </label>
+                <button id="clearCacheBtn" class="small-btn" style="margin-top: 10px; background: #dc3545;">
+                    🗑️ ล้าง Cache
+                </button>
+                <small id="cacheSizeInfo" style="display: block; margin-top: 5px; color: #6c757d;"></small>
+            </div>
+            
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <p id="loadingText">กำลังโหลดข้อมูล...</p>
+                <div id="progressBar" class="progress-bar" style="display: none;">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- แผนที่ (45%) -->
+        <div class="map-container" id="map">
+            <!-- ปุ่มเปิดคืน Notes Panel เมื่อถูกซ่อน -->
+            <button id="showNotesPanelBtn" class="show-notes-btn" style="display: none;" title="แสดงหมายเหตุ">
+                📝
+            </button>
+        </div>
+        
+        <!-- Panel รายการหมายเหตุ (25%) -->
+        <div class="notes-panel" id="notesPanel">
+            <div class="notes-panel-header">
+                <h2>📝 หมายเหตุ</h2>
+                <button id="toggleNotesPanelBtn" class="toggle-btn" title="ซ่อน/แสดง">◀</button>
+            </div>
+            <div class="notes-content" id="notesContent">
+                <div style="text-align: center; color: #6c757d; padding: 20px;">
+                    กำลังโหลดข้อมูล...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <div class="footer-info">
+                    <strong>🔄 Auto Refresh:</strong>
+                    <span id="autoRefreshStatus">กำลังโหลด...</span>
+                </div>
+                <div class="footer-info">
+                    <span id="lastUpdateTime">อัปเดตล่าสุด: -</span>
+                </div>
+            </div>
+            <div class="footer-section">
+                <div class="footer-message">
+                    <strong>📌 หมายเหตุ:</strong> ระบบจะอัปเดตข้อมูลอัตโนมัติทุก 5 นาที เพื่อให้ข้อมูลเป็นปัจจุบันที่สุด 
+                    หากต้องการอัปเดตทันที สามารถกดปุ่ม "🔄 รีเฟรช" ได้ตลอดเวลา
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Load Leaflet with fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+            onerror="loadLeafletFallback()"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script>
+        // Fallback function if primary CDN fails
+        function loadLeafletFallback() {
+            console.warn('Primary CDN failed, trying fallback...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.crossOrigin = '';
+            script.onerror = function() {
+                console.error('All CDNs failed to load Leaflet');
+                document.getElementById('map').innerHTML = 
+                    '<div style="padding: 20px; text-align: center; color: red;">' +
+                    '<h3>⚠️ ไม่สามารถโหลด Leaflet ได้</h3>' +
+                    '<p>กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและรีเฟรชหน้าเว็บ</p>' +
+                    '<p>หรือลองใช้ CDN อื่น</p>' +
+                    '</div>';
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>
+
