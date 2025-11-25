@@ -15,7 +15,8 @@
     <div class="container">
         <!-- Panel กรองข้อมูล (30%) -->
         <div class="filter-panel">
-            <div class="panel-header">
+            <div class="filter-panel-content">
+                <div class="panel-header">
                 <h2>🔍 กรองข้อมูล</h2>
                 <button id="refreshBtn" class="refresh-btn">🔄 รีเฟรช</button>
             </div>
@@ -113,13 +114,35 @@
                 <small id="cacheSizeInfo" style="display: block; margin-top: 5px; color: #6c757d;"></small>
             </div>
             
-            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-                <div class="spinner"></div>
-                <p id="loadingText">กำลังโหลดข้อมูล...</p>
-                <div id="progressBar" class="progress-bar" style="display: none;">
-                    <div id="progressFill" class="progress-fill"></div>
+                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <p id="loadingText">กำลังโหลดข้อมูล...</p>
+                    <div id="progressBar" class="progress-bar" style="display: none;">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
                 </div>
             </div>
+            
+            <!-- Footer -->
+            <footer class="app-footer">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <div class="footer-info">
+                            <strong>🔄 Auto Refresh:</strong>
+                            <span id="autoRefreshStatus">กำลังโหลด...</span>
+                        </div>
+                        <div class="footer-info">
+                            <span id="lastUpdateTime">อัปเดตล่าสุด: -</span>
+                        </div>
+                    </div>
+                    <div class="footer-section">
+                        <div class="footer-message">
+                            <strong>📌 หมายเหตุ:</strong> ระบบจะอัปเดตข้อมูลอัตโนมัติทุก 5 นาที เพื่อให้ข้อมูลเป็นปัจจุบันที่สุด 
+                            หากต้องการอัปเดตทันที สามารถกดปุ่ม "🔄 รีเฟรช" ได้ตลอดเวลา
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
         
         <!-- แผนที่ (45%) -->
@@ -143,27 +166,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Footer -->
-    <footer class="app-footer">
-        <div class="footer-content">
-            <div class="footer-section">
-                <div class="footer-info">
-                    <strong>🔄 Auto Refresh:</strong>
-                    <span id="autoRefreshStatus">กำลังโหลด...</span>
-                </div>
-                <div class="footer-info">
-                    <span id="lastUpdateTime">อัปเดตล่าสุด: -</span>
-                </div>
-            </div>
-            <div class="footer-section">
-                <div class="footer-message">
-                    <strong>📌 หมายเหตุ:</strong> ระบบจะอัปเดตข้อมูลอัตโนมัติทุก 5 นาที เพื่อให้ข้อมูลเป็นปัจจุบันที่สุด 
-                    หากต้องการอัปเดตทันที สามารถกดปุ่ม "🔄 รีเฟรช" ได้ตลอดเวลา
-                </div>
-            </div>
-        </div>
-    </footer>
     
     <!-- Load Leaflet with fallback -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
