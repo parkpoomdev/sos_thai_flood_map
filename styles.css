@@ -15,42 +15,103 @@ body {
     width: 100vw;
 }
 
-/* แผนที่ (35%) */
+/* แผนที่ (42% - เพิ่มขึ้นเพื่อชดเชยการลดความกว้างของ filter panel) */
 .map-container {
-    width: 35%;
+    width: 42%;
     height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+}
+
+/* เมื่อ notes-panel ถูกซ่อน ให้ map-container ขยายเต็มพื้นที่ */
+.map-container.notes-panel-collapsed {
+    width: 68% !important; /* 42% + 26% (notes-panel width) */
+}
+
+.map-container-header {
+    display: none;
+}
+
+#map {
+    flex: 1;
+    width: 100%;
+    height: 100%;
     position: relative;
 }
 
-/* ปุ่มเปิดคืน Notes Panel - มุมขวาบน */
-.show-notes-btn {
-    position: absolute;
-    right: 10px;
-    top: 10px;
-    background: #007bff;
+/* Container สำหรับปุ่มและข้อความ */
+.show-notes-container {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    align-items: center;
+    gap: 12px;
+    z-index: 1001;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.show-notes-container.show {
+    display: flex !important;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ข้อความ "แสดงหมายเหตุ" */
+.show-notes-text {
+    background: rgba(0, 0, 0, 0.75);
     color: white;
-    border: none;
-    border-radius: 50%;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    order: 1; /* อยู่ซ้าย */
+}
+
+/* ปุ่มเปิดคืน Notes Panel - วงกลม (Desktop only) */
+.show-notes-btn {
     width: 50px;
     height: 50px;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    border-radius: 50%; /* วงกลม */
     font-size: 1.5rem;
     cursor: pointer;
-    z-index: 1000;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
+    order: 2; /* อยู่ขวา */
 }
 
 .show-notes-btn:hover {
-    background: #0056b3;
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
     transform: scale(1.1);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.5);
 }
 
 .show-notes-btn:active {
     transform: scale(0.95);
+}
+
+/* Desktop only */
+@media (max-width: 768px) {
+    .show-notes-container {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
 }
 
 
@@ -59,9 +120,9 @@ body {
     height: 100%;
 }
 
-/* Panel กรองข้อมูล (40%) */
+/* Panel กรองข้อมูล (32% - ลดลง 10% จาก 36%) */
 .filter-panel {
-    width: 40%;
+    width: 32%;
     height: 100vh;
     background: #f8f9fa;
     border-right: 2px solid #dee2e6;
@@ -74,51 +135,83 @@ body {
 .filter-panel-content {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 18px; /* ลดลง 10% จาก 20px */
 }
 
-/* Panel รายการหมายเหตุ (25%) */
+/* Panel รายการหมายเหตุ (26% - คงเดิม) */
 .notes-panel {
-    width: 25%;
+    width: 26%;
     height: 100vh;
     background: #ffffff;
     border-left: 2px solid #dee2e6;
     display: flex;
     flex-direction: column;
     box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, border 0.3s ease, box-shadow 0.3s ease;
     position: relative;
     z-index: 1000;
+    overflow: hidden;
 }
 
+/* เมื่อ panel ถูก collapse - ซ่อนทั้งหมด */
 .notes-panel.collapsed {
-    width: 0;
-    overflow: hidden;
-    border-left: none;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+}
+
+/* ซ่อน content เมื่อ collapsed */
+.notes-panel.collapsed .notes-panel-header,
+.notes-panel.collapsed .notes-content {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
 }
 
 /* ป้องกัน hover effect เมื่อ panel ถูกซ่อนโดยตั้งใจ */
 .notes-panel.collapsed.no-hover {
     width: 0 !important;
-    overflow: hidden !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
     border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
 }
 
-/* Hover effect - แสดง panel ชั่วคราวเมื่อ hover ที่ขอบขวาของ map */
+/* Hover effect - แสดง panel ชั่วคราวเมื่อ hover ที่ขอบขวาของ map (Desktop only) */
 /* ทำงานเฉพาะเมื่อ panel ถูกซ่อนอยู่และไม่มี class no-hover */
-.map-container:hover .notes-panel.collapsed:not(.no-hover),
-.container:hover .notes-panel.collapsed:not(.no-hover) {
-    width: 25%;
-    overflow: visible;
-    border-left: 2px solid #dee2e6;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-    z-index: 1001;
-    transition: width 0.2s ease;
-}
+/* ใช้ min-width เพื่อให้ทำงานเฉพาะ desktop */
+/* ปิดการใช้งาน hover effect ชั่วคราว - ใช้ปุ่มแทน */
+@media (min-width: 769px) {
+    /* Disable hover effect - use button instead */
+    /*
+    .map-container:hover .notes-panel.collapsed:not(.no-hover),
+    .container:hover .notes-panel.collapsed:not(.no-hover) {
+        width: 26%;
+        overflow: visible;
+        border-left: 2px solid #dee2e6;
+        box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+        z-index: 1001;
+        transition: width 0.2s ease;
+    }
 
-.map-container:hover .notes-panel.collapsed:not(.no-hover) .notes-content,
-.container:hover .notes-panel.collapsed:not(.no-hover) .notes-content {
-    overflow-y: auto;
+    .map-container:hover .notes-panel.collapsed:not(.no-hover) .notes-content,
+    .container:hover .notes-panel.collapsed:not(.no-hover) .notes-content {
+        overflow-y: auto;
+    }
+    */
 }
 
 .notes-panel-header {
@@ -593,6 +686,24 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+/* Small spinner for loading indicator */
+.spinner-small {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #6c757d;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+.load-more-indicator {
+    padding: 15px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
 .loading-indicator p {
     color: #495057;
     font-size: 1rem;
@@ -777,7 +888,6 @@ body {
 
 /* Mobile Layout Support */
 @media (max-width: 768px) {
-<<<<<<< HEAD
     body {
         overflow-y: auto;
         overflow-x: hidden;
@@ -799,21 +909,87 @@ body {
         position: relative;
         order: 1;
         transition: max-height 0.3s ease;
+        overflow: visible; /* เปลี่ยนเป็น visible เพื่อให้ header เห็น */
     }
 
     .filter-panel.collapsed {
+        max-height: 60px; /* แสดงเฉพาะ header */
+        overflow: visible; /* เปลี่ยนเป็น visible เพื่อให้ header เห็น */
+    }
+
+    /* แสดง header เสมอแม้จะ collapse - header อยู่ใน content แต่ต้องแสดงเสมอ */
+    .filter-panel .panel-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: 60px;
+        min-height: 60px;
         max-height: 60px;
-        overflow: hidden;
+        position: relative;
+        z-index: 101;
+    }
+
+    .filter-panel.collapsed .panel-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: 60px;
+        min-height: 60px;
+        max-height: 60px;
     }
 
     .filter-panel-content {
         max-height: calc(50vh - 60px);
         overflow-y: auto;
         padding: 15px;
+        transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+        display: block; /* แสดงเสมอ */
     }
 
+    /* หุบ content เมื่อ collapse แต่ยังอยู่ใน DOM - ซ่อนทุกอย่างยกเว้น header */
     .filter-panel.collapsed .filter-panel-content {
-        display: none;
+        max-height: 60px !important; /* เก็บพื้นที่สำหรับ header */
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden;
+        display: block !important; /* ยังอยู่ใน DOM */
+    }
+
+    /* แสดง header เสมอแม้จะ collapse */
+    .filter-panel.collapsed .filter-panel-content .panel-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: 60px !important;
+        min-height: 60px !important;
+        max-height: 60px !important;
+        padding: 12px 15px !important;
+        margin: 0 !important;
+        position: relative !important;
+        z-index: 101 !important;
+    }
+
+    /* ซ่อนทุกอย่างใน content ยกเว้น header */
+    .filter-panel.collapsed .filter-panel-content > .filter-section,
+    .filter-panel.collapsed .filter-panel-content > #loadingIndicator {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* ซ่อน footer เมื่อ collapse */
+    .filter-panel.collapsed .app-footer {
+        max-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden;
+        opacity: 0;
+        visibility: hidden;
+        display: block !important; /* ยังอยู่ใน DOM */
     }
 
     .panel-header {
@@ -824,6 +1000,11 @@ body {
         background: #f8f9fa;
         z-index: 100;
         border-bottom: 2px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 60px;
+        height: 60px;
     }
 
     .panel-header h2 {
@@ -848,21 +1029,60 @@ body {
     /* Map Container - Mobile */
     .map-container {
         width: 100%;
-        height: 50vh;
-        min-height: 400px;
+        height: auto;
+        max-height: 50vh;
+        min-height: 300px;
         order: 2;
         position: relative;
+        display: flex;
+        flex-direction: column;
+        border-bottom: 2px solid #dee2e6;
+        transition: max-height 0.3s ease;
+    }
+
+    .map-container.collapsed {
+        max-height: 50px;
+        min-height: 50px;
+        overflow: hidden;
+    }
+
+    .map-container.collapsed #map {
+        display: none;
+    }
+
+    .map-container-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .map-container-header h2 {
+        color: #212529;
+        font-size: 1.2rem;
+        margin: 0;
+    }
+
+    .map-container.collapsed .map-container-header {
+        border-bottom: none;
     }
 
     #map {
+        flex: 1;
         height: 100%;
+        min-height: 300px;
     }
 
     /* Notes Panel - Mobile */
     .notes-panel {
         width: 100%;
         height: auto;
-        max-height: 40vh;
+        max-height: 50vh; /* ลดลง 5% จาก 53vh (53vh * 0.95 = 50.35vh ≈ 50vh) */
         border-left: none;
         border-top: 2px solid #dee2e6;
         order: 3;
@@ -870,13 +1090,41 @@ body {
         transition: max-height 0.3s ease;
     }
 
+    /* เมื่อ map collapse ให้ notes panel ขยายเต็มพื้นที่ */
+    .map-container.collapsed ~ .notes-panel {
+        max-height: calc(100vh - 60px - 50px); /* ลบ filter panel header และ map header */
+    }
+
+    .map-container.collapsed ~ .notes-panel .notes-content {
+        max-height: calc(100vh - 60px - 50px - 50px); /* ลบ headers ทั้งหมด */
+        padding-bottom: 80px; /* เพิ่ม padding-bottom เพื่อให้ปุ่มโหลดเพิ่มเติมเห็นได้ชัดเจน */
+    }
+
+    /* ปิดการใช้งาน collapse ใน mobile - แสดงเสมอ */
     .notes-panel.collapsed {
-        max-height: 50px;
-        overflow: hidden;
+        max-height: 50vh !important; /* ลดลง 5% จาก 53vh */
+        overflow: visible !important;
     }
 
     .notes-panel.collapsed .notes-content {
-        display: none;
+        display: block !important;
+    }
+
+    /* แสดง header เสมอแม้จะ collapse */
+    .notes-panel.collapsed .notes-panel-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* ซ่อน toggle button ใน mobile */
+    .notes-panel-header .toggle-btn {
+        display: none !important;
+    }
+
+    /* ซ่อน show notes button ใน mobile */
+    .show-notes-btn {
+        display: none !important;
     }
 
     .notes-panel-header {
@@ -886,15 +1134,30 @@ body {
         background: #f8f9fa;
         z-index: 100;
         border-bottom: 2px solid #dee2e6;
+        display: flex;
+        justify-content: space-between; /* ให้ title และ button อยู่คนละฝั่ง */
+        align-items: center; /* จัดกึ่งกลางแนวตั้ง */
+        height: 50px; /* กำหนดความสูงคงที่ */
+        min-height: 50px;
     }
 
     .notes-panel-header h2 {
         font-size: 1.2rem;
+        margin: 0; /* ลบ margin เพื่อให้พอดี */
+        flex: 1; /* ให้ title ใช้พื้นที่ที่เหลือ */
+    }
+
+    /* Toggle button ใน header - Accordion style */
+    .notes-panel-header .toggle-btn {
+        flex-shrink: 0; /* ไม่ให้ button หด */
+        margin-left: 10px; /* เพิ่มระยะห่างจาก title */
     }
 
     .notes-content {
-        max-height: calc(40vh - 50px);
+        max-height: calc(50vh - 50px); /* ลดลง 5% จาก 53vh */
         padding: 12px;
+        padding-bottom: 80px; /* เพิ่ม padding-bottom เพื่อให้ปุ่มโหลดเพิ่มเติมเห็นได้ชัดเจน */
+        overflow-y: auto;
     }
 
     .toggle-btn {
@@ -981,6 +1244,18 @@ body {
         min-height: 44px; /* Touch-friendly size */
     }
 
+    /* Load More Button - Mobile */
+    .load-more-btn {
+        position: relative;
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        font-weight: 500;
+    }
+
+    .load-more-btn:active {
+        transform: scale(0.98);
+    }
+
     .refresh-btn {
         min-height: 44px;
         padding: 10px 16px;
@@ -1003,9 +1278,16 @@ body {
     }
 
     /* Footer - Mobile */
+    /* ซ่อน footer ใน mobile view */
     .app-footer {
-        padding: 10px 12px;
-        order: 4;
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
     }
 
     .footer-section {
@@ -1051,11 +1333,18 @@ body {
         font-size: 0.9rem;
     }
 
-    /* Disable hover effects on mobile */
+    /* Disable hover effects on mobile - ใช้ Accordion style แทน */
     .map-container:hover .notes-panel.collapsed:not(.no-hover),
     .container:hover .notes-panel.collapsed:not(.no-hover) {
         width: 100%;
         max-height: 50px;
+        overflow: visible; /* ให้ header เห็นได้ */
+    }
+    
+    /* ป้องกัน hover effect ใน mobile - ใช้ Accordion แทน */
+    .map-container:hover .notes-panel.collapsed:not(.no-hover) .notes-panel-header,
+    .container:hover .notes-panel.collapsed:not(.no-hover) .notes-panel-header {
+        display: flex !important; /* แสดง header เสมอใน mobile */
     }
 
     /* Popup - Mobile */
@@ -1089,12 +1378,25 @@ body {
     }
 
     .notes-panel {
-        max-height: 35vh;
+        max-height: 44vh; /* ลดลง 5% จาก 46vh (46vh * 0.95 = 43.7vh ≈ 44vh) */
+    }
+
+    .notes-panel.collapsed {
+        max-height: 44vh !important; /* ลดลง 5% */
+    }
+
+    /* แสดง header เสมอแม้จะ collapse */
+    .notes-panel.collapsed .notes-panel-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 
     .notes-content {
-        max-height: calc(35vh - 50px);
+        max-height: calc(44vh - 50px); /* ลดลง 5% จาก 46vh */
         padding: 10px;
+        padding-bottom: 80px; /* เพิ่ม padding-bottom เพื่อให้ปุ่มโหลดเพิ่มเติมเห็นได้ชัดเจน */
+        overflow-y: auto;
     }
 
     .panel-header h2 {
@@ -1138,11 +1440,22 @@ body {
     }
 
     .notes-panel {
-        max-height: 30vh;
+        max-height: 38vh; /* ลดลง 5% จาก 40vh (40vh * 0.95 = 38vh) */
+    }
+
+    .notes-panel.collapsed {
+        max-height: 38vh !important; /* ลดลง 5% */
+    }
+
+    /* แสดง header เสมอแม้จะ collapse */
+    .notes-panel.collapsed .notes-panel-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 
     .notes-content {
-        max-height: calc(30vh - 50px);
+        max-height: calc(38vh - 50px); /* ลดลง 5% จาก 40vh */
     }
 }
 

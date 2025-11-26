@@ -22,6 +22,9 @@ class FloodMapApp {
         this.autoRefreshMinutes = 5; // Auto-refresh every 5 minutes
         this.lastFetchedAt = null; // เก็บ fetched_at ล่าสุด
         this.lastUpdateTime = null; // เวลาที่อัปเดตล่าสุด
+        this.savedMapBounds = null; // เก็บ bounds ของ map เมื่อ collapse
+        this.intersectionObserver = null; // Intersection Observer สำหรับ infinite scroll
+        this.isLoadingMore = false; // Flag เพื่อป้องกันการโหลดซ้ำ
         
         this.init();
     }
@@ -212,12 +215,22 @@ class FloodMapApp {
             this.toggleNotesPanel();
         });
         
-        // Show notes panel button (เมื่อ panel ถูกซ่อน)
+        // Show notes panel button (เมื่อ panel ถูกซ่อน) - Desktop only
         const showNotesPanelBtn = document.getElementById('showNotesPanelBtn');
         if (showNotesPanelBtn) {
+            // เริ่มต้นซ่อน container
+            const showContainer = showNotesPanelBtn.closest('.show-notes-container');
+            if (showContainer) {
+                showContainer.classList.remove('show');
+            } else {
+                showNotesPanelBtn.classList.remove('show');
+            }
+            
             showNotesPanelBtn.addEventListener('click', () => {
                 const panel = document.getElementById('notesPanel');
-                if (panel && panel.classList.contains('collapsed')) {
+                const isMobile = window.innerWidth <= 768;
+                // ทำงานเฉพาะ desktop และเมื่อ panel ถูกซ่อนอยู่
+                if (!isMobile && panel && panel.classList.contains('collapsed')) {
                     this.toggleNotesPanel();
                 }
             });
@@ -228,6 +241,14 @@ class FloodMapApp {
         if (toggleFilterPanelBtn) {
             toggleFilterPanelBtn.addEventListener('click', () => {
                 this.toggleFilterPanel();
+            });
+        }
+        
+        // Toggle map container button (mobile)
+        const toggleMapContainerBtn = document.getElementById('toggleMapContainerBtn');
+        if (toggleMapContainerBtn) {
+            toggleMapContainerBtn.addEventListener('click', () => {
+                this.toggleMapContainer();
             });
         }
         
@@ -261,6 +282,14 @@ class FloodMapApp {
             return;
         }
         
+        // ตรวจสอบว่าเป็น mobile หรือไม่
+        const isMobile = window.innerWidth <= 768;
+        
+        // ใน mobile ไม่ให้ collapse
+        if (isMobile) {
+            return;
+        }
+        
         const isCollapsing = !panel.classList.contains('collapsed');
         
         if (isCollapsing) {
@@ -268,18 +297,28 @@ class FloodMapApp {
             this.savedDisplayCount = this.currentDisplayCount;
             // เพิ่ม class เพื่อป้องกัน hover effect
             panel.classList.add('no-hover');
-            // แสดงปุ่มเปิดคืน
-            if (showBtn) {
-                showBtn.style.display = 'block';
+            // แสดงปุ่มเปิดคืน (Desktop only) - ใช้ class show ที่ container
+            if (!isMobile) {
+                const showContainer = showBtn ? showBtn.closest('.show-notes-container') : null;
+                if (showContainer) {
+                    showContainer.classList.add('show');
+                } else if (showBtn) {
+                    // Fallback: ถ้าไม่มี container ให้ใช้ที่ปุ่ม
+                    showBtn.classList.add('show');
+                }
             }
         } else {
             // กำลังจะเปิด - คืนค่าจำนวนรายการ
             this.currentDisplayCount = this.savedDisplayCount;
-            // ลบ class no-hover เพื่อให้ hover effect ทำงานได้อีก
+            // ลบ class no-hover
             panel.classList.remove('no-hover');
-            // ซ่อนปุ่มเปิดคืน
-            if (showBtn) {
-                showBtn.style.display = 'none';
+            // ซ่อนปุ่มเปิดคืน - ลบ class show จาก container
+            const showContainer = showBtn ? showBtn.closest('.show-notes-container') : null;
+            if (showContainer) {
+                showContainer.classList.remove('show');
+            } else if (showBtn) {
+                // Fallback: ถ้าไม่มี container ให้ใช้ที่ปุ่ม
+                showBtn.classList.remove('show');
             }
             // Render ใหม่โดยไม่ reset count
             if (this.visibleNotesData && this.visibleNotesData.length > 0) {
@@ -287,8 +326,28 @@ class FloodMapApp {
             }
         }
         
+        // Toggle collapsed class
         panel.classList.toggle('collapsed');
+        
+        // เพิ่ม/ลบ class ให้ map-container เพื่อขยายพื้นที่
+        const mapContainer = document.getElementById('mapContainer');
+        if (mapContainer) {
+            if (panel.classList.contains('collapsed')) {
+                mapContainer.classList.add('notes-panel-collapsed');
+            } else {
+                mapContainer.classList.remove('notes-panel-collapsed');
+            }
+        }
+        
+        // เปลี่ยน icon ตามสถานะ - Desktop only
         btn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+        
+        // Force map resize after panel toggle
+        if (this.map) {
+            setTimeout(() => {
+                this.map.invalidateSize();
+            }, 300);
+        }
         
         console.log('Panel toggled:', panel.classList.contains('collapsed') ? 'collapsed' : 'expanded');
     }
@@ -313,17 +372,139 @@ class FloodMapApp {
         }
     }
     
+    toggleMapContainer() {
+        const container = document.getElementById('mapContainer');
+        const btn = document.getElementById('toggleMapContainerBtn');
+        
+        if (!container || !btn) {
+            console.error('Map container elements not found');
+            return;
+        }
+        
+        const isCollapsing = !container.classList.contains('collapsed');
+        container.classList.toggle('collapsed');
+        btn.textContent = container.classList.contains('collapsed') ? '▲' : '▼';
+        
+        if (this.map) {
+            if (isCollapsing) {
+                // กำลังจะ collapse - เก็บ bounds ปัจจุบันไว้
+                this.savedMapBounds = this.map.getBounds();
+                console.log('Map collapsed, saved bounds:', this.savedMapBounds);
+            } else {
+                // กำลังจะ expand - ใช้ bounds ที่เก็บไว้ (ถ้ามี)
+                if (this.savedMapBounds) {
+                    setTimeout(() => {
+                        this.map.setView(this.savedMapBounds.getCenter(), this.map.getZoom(), {
+                            animate: false
+                        });
+                        this.savedMapBounds = null; // ล้าง saved bounds หลังจากใช้
+                    }, 100);
+                }
+            }
+            
+            // Force map resize after toggle
+            setTimeout(() => {
+                this.map.invalidateSize();
+            }, 300);
+        }
+        
+        // ไม่ต้อง update notes panel เมื่อ collapse/expand เพราะต้องการใช้ข้อมูลพื้นที่เดิม
+        // Notes panel จะยังคงแสดงข้อมูลตาม bounds ที่เก็บไว้
+    }
+    
     setupMobileSupport() {
         // Check if mobile device
         const isMobile = window.innerWidth <= 768;
         
         // Show/hide mobile toggle buttons
         const toggleFilterBtn = document.getElementById('toggleFilterPanelBtn');
+        const toggleMapBtn = document.getElementById('toggleMapContainerBtn');
+        const mapHeader = document.querySelector('.map-container-header');
+        const toggleNotesBtn = document.getElementById('toggleNotesPanelBtn');
+        const showNotesBtn = document.getElementById('showNotesPanelBtn');
+        const notesPanel = document.getElementById('notesPanel');
+        
         if (toggleFilterBtn) {
             if (isMobile) {
                 toggleFilterBtn.style.display = 'flex';
             } else {
                 toggleFilterBtn.style.display = 'none';
+                // Remove collapsed class on desktop
+                const filterPanel = document.querySelector('.filter-panel');
+                if (filterPanel) {
+                    filterPanel.classList.remove('collapsed');
+                }
+            }
+        }
+        
+        if (toggleMapBtn && mapHeader) {
+            if (isMobile) {
+                mapHeader.style.display = 'flex';
+            } else {
+                mapHeader.style.display = 'none';
+                // Remove collapsed class on desktop
+                const mapContainer = document.getElementById('mapContainer');
+                if (mapContainer) {
+                    mapContainer.classList.remove('collapsed');
+                }
+            }
+        }
+        
+        // Notes panel - ใน mobile ให้แสดงเสมอ
+        const mapContainer = document.getElementById('mapContainer');
+        if (notesPanel) {
+            if (isMobile) {
+                // Mobile: ลบ collapsed class และซ่อน toggle button
+                notesPanel.classList.remove('collapsed');
+                notesPanel.classList.remove('no-hover');
+                if (mapContainer) {
+                    mapContainer.classList.remove('notes-panel-collapsed');
+                }
+                if (toggleNotesBtn) {
+                    toggleNotesBtn.style.display = 'none';
+                }
+                if (showNotesBtn) {
+                    showNotesBtn.style.display = 'none';
+                }
+            } else {
+                // Desktop: แสดง toggle button และจัดการ show button
+                if (toggleNotesBtn) {
+                    toggleNotesBtn.style.display = 'flex';
+                }
+                if (showNotesBtn) {
+                    // แสดงเฉพาะเมื่อ panel ถูกซ่อนอยู่ - ใช้ class show ที่ container
+                    const showContainer = showNotesBtn.closest('.show-notes-container');
+                    if (notesPanel.classList.contains('collapsed')) {
+                        if (showContainer) {
+                            showContainer.classList.add('show');
+                        } else {
+                            showNotesBtn.classList.add('show');
+                        }
+                        // เพิ่ม class ให้ map-container เพื่อขยายพื้นที่
+                        if (mapContainer) {
+                            mapContainer.classList.add('notes-panel-collapsed');
+                        }
+                    } else {
+                        if (showContainer) {
+                            showContainer.classList.remove('show');
+                        } else {
+                            showNotesBtn.classList.remove('show');
+                        }
+                        // ลบ class จาก map-container
+                        if (mapContainer) {
+                            mapContainer.classList.remove('notes-panel-collapsed');
+                        }
+                    }
+                } else {
+                    // ถ้าไม่มี showBtn ให้ตรวจสอบสถานะ panel และจัดการ map-container
+                    if (mapContainer) {
+                        if (notesPanel.classList.contains('collapsed')) {
+                            mapContainer.classList.add('notes-panel-collapsed');
+                        } else {
+                            mapContainer.classList.remove('notes-panel-collapsed');
+                        }
+                    }
+                }
             }
         }
         
@@ -342,6 +523,80 @@ class FloodMapApp {
                         const filterPanel = document.querySelector('.filter-panel');
                         if (filterPanel) {
                             filterPanel.classList.remove('collapsed');
+                        }
+                    }
+                }
+                
+                if (toggleMapBtn && mapHeader) {
+                    if (nowMobile) {
+                        mapHeader.style.display = 'flex';
+                    } else {
+                        mapHeader.style.display = 'none';
+                        // Remove collapsed class on desktop
+                        const mapContainer = document.getElementById('mapContainer');
+                        if (mapContainer) {
+                            mapContainer.classList.remove('collapsed');
+                        }
+                    }
+                }
+                
+                // Notes panel - ใน mobile ให้แสดงเสมอ
+                const notesPanel = document.getElementById('notesPanel');
+                const toggleNotesBtn = document.getElementById('toggleNotesPanelBtn');
+                const showNotesBtn = document.getElementById('showNotesPanelBtn');
+                const mapContainer = document.getElementById('mapContainer');
+                if (notesPanel) {
+                    if (nowMobile) {
+                        // Mobile: ลบ collapsed class และซ่อน toggle button
+                        notesPanel.classList.remove('collapsed');
+                        notesPanel.classList.remove('no-hover');
+                        if (mapContainer) {
+                            mapContainer.classList.remove('notes-panel-collapsed');
+                        }
+                        if (toggleNotesBtn) {
+                            toggleNotesBtn.style.display = 'none';
+                        }
+                        if (showNotesBtn) {
+                            showNotesBtn.style.display = 'none';
+                        }
+                    } else {
+                        // Desktop: แสดง toggle button และจัดการ show button
+                        if (toggleNotesBtn) {
+                            toggleNotesBtn.style.display = 'flex';
+                        }
+                        if (showNotesBtn) {
+                            // แสดงเฉพาะเมื่อ panel ถูกซ่อนอยู่ - ใช้ class show ที่ container
+                            const showContainer = showNotesBtn.closest('.show-notes-container');
+                            if (notesPanel.classList.contains('collapsed')) {
+                                if (showContainer) {
+                                    showContainer.classList.add('show');
+                                } else {
+                                    showNotesBtn.classList.add('show');
+                                }
+                                // เพิ่ม class ให้ map-container เพื่อขยายพื้นที่
+                                if (mapContainer) {
+                                    mapContainer.classList.add('notes-panel-collapsed');
+                                }
+                            } else {
+                                if (showContainer) {
+                                    showContainer.classList.remove('show');
+                                } else {
+                                    showNotesBtn.classList.remove('show');
+                                }
+                                // ลบ class จาก map-container
+                                if (mapContainer) {
+                                    mapContainer.classList.remove('notes-panel-collapsed');
+                                }
+                            }
+                        } else {
+                            // ถ้าไม่มี showBtn ให้ตรวจสอบสถานะ panel และจัดการ map-container
+                            if (mapContainer) {
+                                if (notesPanel.classList.contains('collapsed')) {
+                                    mapContainer.classList.add('notes-panel-collapsed');
+                                } else {
+                                    mapContainer.classList.remove('notes-panel-collapsed');
+                                }
+                            }
                         }
                     }
                 }
@@ -368,8 +623,18 @@ class FloodMapApp {
     updateNotesPanel() {
         if (!this.map) return;
         
-        // ดึง bounds ปัจจุบัน
-        const bounds = this.map.getBounds();
+        // ดึง bounds - ใช้ saved bounds ถ้า map ถูก collapse อยู่
+        let bounds;
+        const mapContainer = document.getElementById('mapContainer');
+        if (mapContainer && mapContainer.classList.contains('collapsed') && this.savedMapBounds) {
+            // ใช้ bounds ที่เก็บไว้เมื่อ map ถูก collapse
+            bounds = this.savedMapBounds;
+        } else {
+            // ใช้ bounds ปัจจุบันจาก map
+            bounds = this.map.getBounds();
+            // อัปเดต saved bounds ถ้า map ไม่ได้ collapse
+            this.savedMapBounds = bounds;
+        }
         
         // กรองข้อมูลที่อยู่ใน bounds และผ่าน filter แล้ว
         const visibleData = this.filteredData.filter(item => {
@@ -401,6 +666,9 @@ class FloodMapApp {
                           this.visibleNotesData.length > 0 &&
                           this.visibleNotesData.every((item, index) => item.id === notesOnlyData[index]?.id);
         
+        // อัปเดต title ของ notes panel header
+        this.updateNotesPanelTitle(notesOnlyData.length);
+        
         this.renderNotesList(notesOnlyData, !isSameData);
     }
     
@@ -411,6 +679,7 @@ class FloodMapApp {
         if (data.length === 0) {
             container.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">ไม่มีข้อความที่มีหมายเหตุในพื้นที่นี้</div>';
             this.currentDisplayCount = 8;
+            this.updateNotesPanelTitle(0);
             return;
         }
         
@@ -505,23 +774,58 @@ class FloodMapApp {
         
         if (hasMore) {
             const loadMoreCount = Math.min(this.loadMoreIncrement, remaining);
-            html += `
-                <div style="text-align: center; padding: 15px;">
-                    <button class="small-btn" style="width: 100%; background: #6c757d;" onclick="window.floodMapApp.loadMoreNotes()">
-                        📋 แสดงเพิ่มเติม ${loadMoreCount} รายการ (เหลืออีก ${remaining} รายการ)
-                    </button>
-                </div>
-            `;
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // Mobile: สร้าง sentinel element สำหรับ infinite scroll
+                html += `
+                    <div id="loadMoreSentinel" style="height: 20px; padding: 10px;"></div>
+                    <div class="load-more-indicator" style="display: none; text-align: center; padding: 15px; color: #6c757d; font-size: 0.9rem;">
+                        <div class="spinner-small" style="border: 2px solid #f3f3f3; border-top: 2px solid #6c757d; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto 8px;"></div>
+                        กำลังโหลดข้อมูลเพิ่มเติม...
+                    </div>
+                `;
+            } else {
+                // Desktop: แสดงปุ่มโหลดเพิ่มเติม
+                html += `
+                    <div style="text-align: center; padding: 15px; padding-bottom: 20px; margin-bottom: 20px;">
+                        <button class="small-btn load-more-btn" style="width: 100%; background: #6c757d; min-height: 44px; font-size: 0.9rem; padding: 12px;" onclick="window.floodMapApp.loadMoreNotes()">
+                            📋 แสดงเพิ่มเติม ${loadMoreCount} รายการ (เหลืออีก ${remaining} รายการ)
+                        </button>
+                    </div>
+                `;
+            }
         }
         
         container.innerHTML = html;
         
         // เก็บข้อมูลทั้งหมดไว้สำหรับ loadMoreNotes
         this.visibleNotesData = data;
+        
+        // อัปเดต title ของ notes panel header
+        const displayedCount = Math.min(this.currentDisplayCount, data.length);
+        this.updateNotesPanelTitle(data.length, displayedCount);
+        
+        // Setup infinite scroll สำหรับ mobile
+        if (hasMore) {
+            this.setupInfiniteScroll();
+        }
     }
     
     loadMoreNotes() {
         if (!this.visibleNotesData || this.visibleNotesData.length === 0) return;
+        if (this.isLoadingMore) return; // ป้องกันการโหลดซ้ำ
+        
+        this.isLoadingMore = true;
+        const isMobile = window.innerWidth <= 768;
+        
+        // แสดง loading indicator บน mobile
+        if (isMobile) {
+            const loadingIndicator = document.querySelector('.load-more-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'block';
+            }
+        }
         
         // คำนวณ batch number ที่จะโหลด (ชุดถัดไป)
         const previousCount = this.currentDisplayCount;
@@ -538,26 +842,73 @@ class FloodMapApp {
         // Render ใหม่โดยไม่ reset count
         this.renderNotesList(this.visibleNotesData, false);
         
-        // Scroll ไปที่จุดเริ่มต้นของชุดข้อมูลใหม่ (separator)
-        const container = document.getElementById('notesContent');
-        if (container) {
-            setTimeout(() => {
-                // หา separator ของชุดที่โหลดใหม่
-                const batchSeparator = document.getElementById(`batch-separator-${nextBatchNumber}`);
-                if (batchSeparator) {
-                    // Scroll ไปที่ separator โดยให้อยู่ที่ top ของ panel
-                    batchSeparator.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } else {
-                    // ถ้าหาไม่เจอ ให้ scroll ไปที่ batch header แทน
-                    const batchHeader = document.getElementById(`batch-header-${nextBatchNumber}`);
-                    if (batchHeader) {
-                        batchHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        this.isLoadingMore = false;
+        
+        // Scroll ไปที่จุดเริ่มต้นของชุดข้อมูลใหม่ (separator) - เฉพาะ desktop
+        if (!isMobile) {
+            const container = document.getElementById('notesContent');
+            if (container) {
+                setTimeout(() => {
+                    // หา separator ของชุดที่โหลดใหม่
+                    const batchSeparator = document.getElementById(`batch-separator-${nextBatchNumber}`);
+                    if (batchSeparator) {
+                        // Scroll ไปที่ separator โดยให้อยู่ที่ top ของ panel
+                        batchSeparator.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     } else {
-                        // ถ้ายังหาไม่เจอ ให้ scroll ไปที่ top ของ container
-                        container.scrollTop = 0;
+                        // ถ้าหาไม่เจอ ให้ scroll ไปที่ batch header แทน
+                        const batchHeader = document.getElementById(`batch-header-${nextBatchNumber}`);
+                        if (batchHeader) {
+                            batchHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        } else {
+                            // ถ้ายังหาไม่เจอ ให้ scroll ไปที่ top ของ container
+                            container.scrollTop = 0;
+                        }
                     }
+                }, 100);
+            }
+        }
+    }
+    
+    setupInfiniteScroll() {
+        // ลบ observer เดิมถ้ามี
+        if (this.intersectionObserver) {
+            this.intersectionObserver.disconnect();
+            this.intersectionObserver = null;
+        }
+        
+        const isMobile = window.innerWidth <= 768;
+        if (!isMobile) return; // ใช้เฉพาะ mobile
+        
+        const sentinel = document.getElementById('loadMoreSentinel');
+        if (!sentinel) return;
+        
+        // สร้าง Intersection Observer
+        this.intersectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !this.isLoadingMore) {
+                    // เมื่อเห็น sentinel element ให้โหลดข้อมูลเพิ่ม
+                    this.loadMoreNotes();
                 }
-            }, 100);
+            });
+        }, {
+            root: document.getElementById('notesContent'),
+            rootMargin: '100px', // เริ่มโหลดก่อนถึง 100px
+            threshold: 0.1
+        });
+        
+        // เริ่ม observe sentinel element
+        this.intersectionObserver.observe(sentinel);
+    }
+    
+    updateNotesPanelTitle(totalCount, displayedCount = null) {
+        const header = document.querySelector('.notes-panel-header h2');
+        if (header) {
+            const count = displayedCount !== null ? displayedCount : Math.min(this.currentDisplayCount, totalCount);
+            if (totalCount > 0) {
+                header.textContent = `📝 หมายเหตุ (${count}${totalCount > count ? `/${totalCount}` : ''})`;
+            } else {
+                header.textContent = '📝 หมายเหตุ';
+            }
         }
     }
     

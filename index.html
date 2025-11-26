@@ -147,11 +147,20 @@
         </div>
         
         <!-- แผนที่ (45%) -->
-        <div class="map-container" id="map">
-            <!-- ปุ่มเปิดคืน Notes Panel เมื่อถูกซ่อน -->
-            <button id="showNotesPanelBtn" class="show-notes-btn" style="display: none;" title="แสดงหมายเหตุ">
-                📝
-            </button>
+        <div class="map-container" id="mapContainer">
+            <div class="map-container-header mobile-only" style="display: none;">
+                <h2>🗺️ แผนที่</h2>
+                <button id="toggleMapContainerBtn" class="toggle-btn" title="ซ่อน/แสดง">▼</button>
+            </div>
+            <div id="map">
+                <!-- ปุ่มเปิดคืน Notes Panel เมื่อถูกซ่อน (Desktop only) -->
+                <div class="show-notes-container">
+                    <span class="show-notes-text">แสดงหมายเหตุ</span>
+                    <button id="showNotesPanelBtn" class="show-notes-btn" title="แสดงหมายเหตุ">
+                        📝
+                    </button>
+                </div>
+            </div>
         </div>
         
         <!-- Panel รายการหมายเหตุ (25%) -->
