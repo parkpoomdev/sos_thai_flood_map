@@ -18,15 +18,17 @@
             <div class="filter-panel-content">
                 <div class="panel-header">
                 <h2>🔍 กรองข้อมูล</h2>
-                <button id="refreshBtn" class="refresh-btn">🔄 รีเฟรช</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button id="refreshBtn" class="refresh-btn">🔄 รีเฟรช</button>
+                    <button id="toggleFilterPanelBtn" class="toggle-btn mobile-only" title="ซ่อน/แสดง" style="display: none;">▼</button>
+                </div>
             </div>
             
             <div class="filter-section">
                 <h3>📍 ตำบล (Subdistrict)</h3>
-                <select id="subdistrictFilter" multiple class="multi-select">
+                <select id="subdistrictFilter" class="multi-select">
                     <option value="all">ทั้งหมด</option>
                 </select>
-                <small>กด Ctrl/Cmd เพื่อเลือกหลายรายการ</small>
             </div>
             
             <div class="filter-section">
@@ -126,7 +128,7 @@
             <!-- Footer -->
             <footer class="app-footer">
                 <div class="footer-content">
-                    <div class="footer-section">
+                    <div class="footer-section auto-refresh-section">
                         <div class="footer-info">
                             <strong>🔄 Auto Refresh:</strong>
                             <span id="autoRefreshStatus">กำลังโหลด...</span>
@@ -135,7 +137,7 @@
                             <span id="lastUpdateTime">อัปเดตล่าสุด: -</span>
                         </div>
                     </div>
-                    <div class="footer-section">
+                    <div class="footer-section auto-refresh-message">
                         <div class="footer-message">
                             <strong>📌 หมายเหตุ:</strong> ระบบจะอัปเดตข้อมูลอัตโนมัติทุก 5 นาที เพื่อให้ข้อมูลเป็นปัจจุบันที่สุด 
                             หากต้องการอัปเดตทันที สามารถกดปุ่ม "🔄 รีเฟรช" ได้ตลอดเวลา

@@ -159,10 +159,9 @@ class FloodMapApp {
         subdistrictFilter.addEventListener('change', () => {
             this.debouncedApplyFilters();
             // Zoom to selected subdistrict
-            const selectedOptions = Array.from(subdistrictFilter.selectedOptions);
-            if (selectedOptions.length === 1 && selectedOptions[0].value !== 'all') {
-                const selectedSubdistrict = selectedOptions[0].value;
-                this.zoomToSubdistrict(selectedSubdistrict);
+            const selectedValue = subdistrictFilter.value;
+            if (selectedValue && selectedValue !== 'all') {
+                this.zoomToSubdistrict(selectedValue);
             }
         });
 
@@ -223,6 +222,17 @@ class FloodMapApp {
                 }
             });
         }
+        
+        // Toggle filter panel button (mobile)
+        const toggleFilterPanelBtn = document.getElementById('toggleFilterPanelBtn');
+        if (toggleFilterPanelBtn) {
+            toggleFilterPanelBtn.addEventListener('click', () => {
+                this.toggleFilterPanel();
+            });
+        }
+        
+        // Setup mobile detection and initial state
+        this.setupMobileSupport();
     }
     
     setupMapEvents() {
@@ -281,6 +291,78 @@ class FloodMapApp {
         btn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
         
         console.log('Panel toggled:', panel.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+    }
+    
+    toggleFilterPanel() {
+        const panel = document.querySelector('.filter-panel');
+        const btn = document.getElementById('toggleFilterPanelBtn');
+        
+        if (!panel || !btn) {
+            console.error('Filter panel elements not found');
+            return;
+        }
+        
+        panel.classList.toggle('collapsed');
+        btn.textContent = panel.classList.contains('collapsed') ? '▲' : '▼';
+        
+        // Force map resize after panel toggle
+        if (this.map) {
+            setTimeout(() => {
+                this.map.invalidateSize();
+            }, 300);
+        }
+    }
+    
+    setupMobileSupport() {
+        // Check if mobile device
+        const isMobile = window.innerWidth <= 768;
+        
+        // Show/hide mobile toggle buttons
+        const toggleFilterBtn = document.getElementById('toggleFilterPanelBtn');
+        if (toggleFilterBtn) {
+            if (isMobile) {
+                toggleFilterBtn.style.display = 'flex';
+            } else {
+                toggleFilterBtn.style.display = 'none';
+            }
+        }
+        
+        // Handle window resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const nowMobile = window.innerWidth <= 768;
+                if (toggleFilterBtn) {
+                    if (nowMobile) {
+                        toggleFilterBtn.style.display = 'flex';
+                    } else {
+                        toggleFilterBtn.style.display = 'none';
+                        // Remove collapsed class on desktop
+                        const filterPanel = document.querySelector('.filter-panel');
+                        if (filterPanel) {
+                            filterPanel.classList.remove('collapsed');
+                        }
+                    }
+                }
+                
+                // Force map resize on orientation change
+                if (this.map) {
+                    setTimeout(() => {
+                        this.map.invalidateSize();
+                    }, 100);
+                }
+            }, 250);
+        });
+        
+        // Handle orientation change
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                }
+            }, 500);
+        });
     }
     
     updateNotesPanel() {
@@ -736,8 +818,7 @@ class FloodMapApp {
         const victimFilterMode = document.querySelector('input[name="victimFilterMode"]:checked')?.value || 'any';
         
         const subdistrictFilter = document.getElementById('subdistrictFilter');
-        const selectedSubdistricts = Array.from(subdistrictFilter.selectedOptions)
-            .map(opt => opt.value);
+        const selectedSubdistrict = subdistrictFilter.value;
         
         // Filter data
         this.filteredData = this.allData.filter(item => {
@@ -801,8 +882,8 @@ class FloodMapApp {
             }
             
             // Subdistrict filter
-            if (selectedSubdistricts.length > 0 && !selectedSubdistricts.includes('all')) {
-                if (!selectedSubdistricts.includes(item.subdistrict)) {
+            if (selectedSubdistrict && selectedSubdistrict !== 'all') {
+                if (item.subdistrict !== selectedSubdistrict) {
                     return false;
                 }
             }
@@ -1161,7 +1242,7 @@ class FloodMapApp {
         const select = document.getElementById('subdistrictFilter');
         
         // เก็บค่าที่เลือกไว้ก่อน
-        const selectedValues = Array.from(select.selectedOptions).map(opt => opt.value);
+        const selectedValue = select.value;
         
         // Clear existing options except "all"
         select.innerHTML = '<option value="all">ทั้งหมด</option>';
@@ -1172,15 +1253,15 @@ class FloodMapApp {
             option.value = subdistrict;
             option.textContent = `${subdistrict} (${subdistrictCount[subdistrict]})`;
             // Restore selection if it was selected before
-            if (selectedValues.includes(subdistrict)) {
+            if (selectedValue === subdistrict) {
                 option.selected = true;
             }
             select.appendChild(option);
         });
         
         // Restore "all" selection if it was selected
-        if (selectedValues.includes('all')) {
-            select.querySelector('option[value="all"]').selected = true;
+        if (selectedValue === 'all' || !selectedValue) {
+            select.value = 'all';
         }
     }
     
